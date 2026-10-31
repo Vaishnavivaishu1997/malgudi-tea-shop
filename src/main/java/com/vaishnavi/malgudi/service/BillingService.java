@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.vaishnavi.malgudi.entity.OrderItem;
 import com.vaishnavi.malgudi.entity.Product;
@@ -19,42 +20,34 @@ public class BillingService {
     @Autowired
     private OrderItemRepository orderItemRepository;
 
+    @Transactional
+    public void saveItems(List<OrderItem> items) {
+
+        for(OrderItem item : items){
+
+            Product product =
+                    productRepository.findById(
+                            item.getProductId())
+                    .orElseThrow();
+
+            if(product.getStock() < item.getQuantity()){
+
+                throw new RuntimeException(
+                    product.getName() +
+                    " stock not available");
+            }
+
+            product.setStock(
+                product.getStock()
+                - item.getQuantity()
+            );
+
+            productRepository.save(product);
+
+            orderItemRepository.save(item);
+        }
+    }
     public List<Product> getAllProducts() {
         return productRepository.findAll();
-    }
-
-    public List<OrderItem> getAllOrderItems() {
-        return orderItemRepository.findAll();
-    }
-
-    public void addToCart(Long productId, Integer quantity) {
-
-        Product product = productRepository
-                .findById(productId)
-                .orElseThrow(() ->
-                        new RuntimeException("Product Not Found"));
-
-        OrderItem item = new OrderItem();
-
-        item.setProductId(product.getId());
-        item.setProductName(product.getName());
-        item.setPrice(product.getPrice());
-        item.setQuantity(quantity);
-        item.setTotalPrice(
-                product.getPrice() * quantity);
-
-        orderItemRepository.save(item);
-    }
-
-    public void deleteItem(Long id) {
-        orderItemRepository.deleteById(id);
-    }
-
-    public Double getGrandTotal() {
-
-        return orderItemRepository.findAll()
-                .stream()
-                .mapToDouble(OrderItem::getTotalPrice)
-                .sum();
     }
 }
